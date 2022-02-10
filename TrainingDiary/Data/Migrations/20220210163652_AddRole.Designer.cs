@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TrainingDiary.Data;
 
@@ -10,9 +11,10 @@ using TrainingDiary.Data;
 namespace TrainingDiary.Data.Migrations
 {
     [DbContext(typeof(AppDBContext))]
-    partial class AppDBContextModelSnapshot : ModelSnapshot
+    [Migration("20220210163652_AddRole")]
+    partial class AddRole
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "6.0.1");
@@ -45,24 +47,21 @@ namespace TrainingDiary.Data.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "17d42049-fa82-4d66-b803-aa0885494bb3",
-                            ConcurrencyStamp = "897a40bc-c768-4a40-8e4a-afcc3b3987b7",
-                            Name = "user",
-                            NormalizedName = "USER"
+                            Id = "fd4bc608-446f-4c82-a590-b1ac08c1c990",
+                            ConcurrencyStamp = "457f48ab-34a2-425d-8249-2aaf259075f4",
+                            Name = "user"
                         },
                         new
                         {
-                            Id = "33c0a84c-9cb6-4615-b0b0-c67c4c4785c2",
-                            ConcurrencyStamp = "a6144f81-0757-4852-9efa-adad8ba9c9be",
-                            Name = "admin",
-                            NormalizedName = "ADMIN"
+                            Id = "55e19652-5084-43d6-8e4f-da868683ad21",
+                            ConcurrencyStamp = "83e37953-aa53-442e-8852-207bee0052a7",
+                            Name = "admin"
                         },
                         new
                         {
-                            Id = "8b7f700d-be27-47a7-979c-49ace3c22ac0",
-                            ConcurrencyStamp = "22a9c8f0-5983-4997-9f33-412a830ac0fd",
-                            Name = "moderator",
-                            NormalizedName = "MODERATOR"
+                            Id = "b12f2adb-973e-4044-bac2-5d9fa592c751",
+                            ConcurrencyStamp = "1d4886a3-88e4-435e-9c3a-4cdaae4afa76",
+                            Name = "moderator"
                         });
                 });
 

@@ -20,7 +20,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddDbContext<AppDBContext>();
-builder.Services.AddIdentity<User, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<AppDBContext>();
+builder.Services.AddIdentity<User, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true)
+    .AddEntityFrameworkStores<AppDBContext>()
+    .AddDefaultTokenProviders();
 builder.Services.AddAuthorization();
 
 builder.Services.Configure<IdentityOptions>(options =>
@@ -87,7 +89,7 @@ app.MapPost("login", [ValidateAntiForgeryToken] async (LoginDto userDto) =>
         {
 
             var signInManager = (SignInManager<User>)scope.ServiceProvider.GetService(typeof(SignInManager<User>));
-            var result = await signInManager.PasswordSignInAsync(user, userDto.Password, false, false);
+            var result = await signInManager.PasswordSignInAsync(user, userDto.Password, userDto.RememberMe, false);
             if (result.Succeeded)
             {
                 return Results.Ok("Successfully login.");
@@ -132,6 +134,7 @@ app.MapPost("register", async (RegisterDto registerDto) =>
         {
             var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
             await userManager.ConfirmEmailAsync(user, code);
+            await userManager.AddToRoleAsync(user, "user");
             await signInManager.SignInAsync(user, false);
             return Results.Ok("Successfuly register.");
         }
@@ -139,9 +142,9 @@ app.MapPost("register", async (RegisterDto registerDto) =>
     }
 }).WithTags("Authorization Endpoints");
 
-app.MapGet("get-all-exercise-type", [Authorize] async () => await ExerciseTypeRepository.GetExerciseTypeAsync()).WithTags("Exercise Types Endpoints");
+app.MapGet("get-all-exercise-type", [Authorize(Roles = "admin,moderator")] async () => await ExerciseTypeRepository.GetExerciseTypeAsync()).WithTags("Exercise Types Endpoints");
 
-app.MapGet("/get-exercise-type-by-id/{id}", [Authorize] async (int id) =>
+app.MapGet("/get-exercise-type-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     ExerciseType exerciseType = await ExerciseTypeRepository.GetExerciseTypeByIdAsync(id);
     if (exerciseType != null)
@@ -151,7 +154,7 @@ app.MapGet("/get-exercise-type-by-id/{id}", [Authorize] async (int id) =>
     return Results.BadRequest();
 }).WithTags("Exercise Types Endpoints");
 
-app.MapPut("/update-exercise-type", [Authorize] async (ExerciseType exerciseType) =>
+app.MapPut("/update-exercise-type", [Authorize(Roles = "admin,moderator")] async (ExerciseType exerciseType) =>
 {
     bool result = await ExerciseTypeRepository.UpdateExerciseTypeAsync(exerciseType);
     if (result)
@@ -161,7 +164,7 @@ app.MapPut("/update-exercise-type", [Authorize] async (ExerciseType exerciseType
     return Results.BadRequest("Update successful");
 }).WithTags("Exercise Types Endpoints");
 
-app.MapPost("/create-exercise-type", [Authorize] async (ExerciseType exerciseType) =>
+app.MapPost("/create-exercise-type", [Authorize(Roles = "admin,moderator")] async (ExerciseType exerciseType) =>
 {
     bool result = await ExerciseTypeRepository.CreateExerciseTypeAsync(exerciseType);
     if (result)
@@ -171,7 +174,7 @@ app.MapPost("/create-exercise-type", [Authorize] async (ExerciseType exerciseTyp
     return Results.BadRequest();
 }).WithTags("Exercise Types Endpoints");
 
-app.MapDelete("/delete-exercise-type-by-id/{id}", [Authorize] async (int id) =>
+app.MapDelete("/delete-exercise-type-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     bool result = await ExerciseTypeRepository.DaleteExerciseTypeByIdAsync(id);
     if (result)
@@ -193,7 +196,7 @@ app.MapGet("/get-muscle-group-by-id/{id}", [Authorize] async (int id) =>
     return Results.BadRequest();
 }).WithTags("Muscle Groups Endpoints");
 
-app.MapPut("/update-muscle-group", [Authorize] async (MuscleGroup muscleGroup) =>
+app.MapPut("/update-muscle-group", [Authorize(Roles = "admin,moderator")] async (MuscleGroup muscleGroup) =>
 {
     bool result = await MuscleGroupRepository.UpdateMuscleGroupAsync(muscleGroup);
     if (result)
@@ -203,7 +206,7 @@ app.MapPut("/update-muscle-group", [Authorize] async (MuscleGroup muscleGroup) =
     return Results.BadRequest("Update successful");
 }).WithTags("Muscle Groups Endpoints");
 
-app.MapPost("/create-muscle-group", [Authorize] async (MuscleGroup muscleGroup) =>
+app.MapPost("/create-muscle-group", [Authorize(Roles = "admin,moderator")] async (MuscleGroup muscleGroup) =>
 {
     bool result = await MuscleGroupRepository.CreateMuscleGroupAsync(muscleGroup);
     if (result)
@@ -213,7 +216,7 @@ app.MapPost("/create-muscle-group", [Authorize] async (MuscleGroup muscleGroup) 
     return Results.BadRequest();
 }).WithTags("Muscle Groups Endpoints");
 
-app.MapDelete("/delete-muscle-group-by-id/{id}", [Authorize] async (int id) =>
+app.MapDelete("/delete-muscle-group-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     bool result = await MuscleGroupRepository.DaleteMuscleGroupByIdAsync(id);
     if (result)
@@ -235,7 +238,7 @@ app.MapGet("/get-exercise-by-id/{id}", [Authorize] async (int id) =>
     return Results.BadRequest();
 }).WithTags("Exercises Endpoints");
 
-app.MapPut("/update-exercise", [Authorize] async (Exercise exercise) =>
+app.MapPut("/update-exercise", [Authorize(Roles = "admin,moderator")] async (Exercise exercise) =>
 {
     bool result = await ExerciseRepository.UpdateExerciseAsync(exercise);
     if (result)
@@ -255,7 +258,7 @@ app.MapPost("/create-exercise", [Authorize] async (Exercise exercise) =>
     return Results.BadRequest();
 }).WithTags("Exercises Endpoints");
 
-app.MapDelete("/delete-exercise-by-id/{id}", [Authorize] async (int id) =>
+app.MapDelete("/delete-exercise-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     bool result = await ExerciseRepository.DaleteExerciseByIdAsync(id);
     if (result)
@@ -265,9 +268,9 @@ app.MapDelete("/delete-exercise-by-id/{id}", [Authorize] async (int id) =>
     return Results.BadRequest();
 }).WithTags("Exercises Endpoints");
 
-app.MapGet("/get-all-set", [Authorize] async () => await SetRepository.GetSetAsync()).WithTags("Sets Endpoints");
+app.MapGet("/get-all-set", [Authorize(Roles = "admin,moderator")] async () => await SetRepository.GetSetAsync()).WithTags("Sets Endpoints");
 
-app.MapGet("/get-set-by-id/{id}", [Authorize] async (int id) =>
+app.MapGet("/get-set-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     Set set = await SetRepository.GetSetByIdAsync(id);
     if (set != null)
@@ -297,7 +300,7 @@ app.MapPost("/create-set", [Authorize] async (Set set) =>
     return Results.BadRequest();
 }).WithTags("Sets Endpoints");
 
-app.MapDelete("/delete-set-by-id/{id}", [Authorize] async (int id) =>
+app.MapDelete("/delete-set-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     bool result = await SetRepository.DaleteSetByIdAsync(id);
     if (result)
@@ -309,9 +312,22 @@ app.MapDelete("/delete-set-by-id/{id}", [Authorize] async (int id) =>
 
 app.MapGet("/get-all-workout", [Authorize] async () => await WorkoutRepository.GetWorkoutAsync()).WithTags("Workouts Endpoints");
 
-app.MapGet("/get-workout-by-id/{id}", [Authorize] async (int id) =>
+app.MapGet("/get-workout-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     Workout workout = await WorkoutRepository.GetWorkoutByIdAsync(id);
+    User? user;
+    using (var scope = app.Services.CreateScope())
+    {
+        var httpContextAccessor = (IHttpContextAccessor)scope.ServiceProvider.GetService(typeof(IHttpContextAccessor));
+        var userClaim = httpContextAccessor?.HttpContext?.User;
+        var userManager = (UserManager<User>)scope.ServiceProvider.GetService(typeof(UserManager<User>));
+        user = await userManager.GetUserAsync(userClaim);
+    }
+    //TODO: Add role check (ADMIN and MODERATOR)
+    if(user.Id != workout.UserId)
+    {
+        return Results.BadRequest();
+    }
     if (workout != null)
     {
         return Results.Ok(workout);
@@ -339,7 +355,7 @@ app.MapPost("/create-workout", [Authorize] async (Workout workout) =>
     return Results.BadRequest();
 }).WithTags("Workouts Endpoints");
 
-app.MapDelete("/delete-workout-by-id/{id}", [Authorize] async (int id) =>
+app.MapDelete("/delete-workout-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     bool result = await WorkoutRepository.DaleteWorkoutByIdAsync(id);
     if (result)
@@ -349,9 +365,9 @@ app.MapDelete("/delete-workout-by-id/{id}", [Authorize] async (int id) =>
     return Results.BadRequest();
 }).WithTags("Workouts Endpoints");
 
-app.MapGet("/get-all-user", [Authorize] async () => await UserRepository.GetUserAsync()).WithTags("Users Endpoints");
+app.MapGet("/get-all-user", [Authorize(Roles = "admin,moderator")] async () => await UserRepository.GetUserAsync()).WithTags("Users Endpoints");
 
-app.MapGet("/get-user-by-id/{id}", [Authorize] async (string id) =>
+app.MapGet("/get-user-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (string id) =>
 {
     User user = await UserRepository.GetUserByIdAsync(id);
     if (user != null)
@@ -361,7 +377,7 @@ app.MapGet("/get-user-by-id/{id}", [Authorize] async (string id) =>
     return Results.BadRequest();
 }).WithTags("Users Endpoints");
 
-app.MapPut("/update-user", [Authorize] async (User user) =>
+app.MapPut("/update-user", [Authorize(Roles = "admin")] async (User user) =>
 {
     bool result = await UserRepository.UpdateUserAsync(user);
     if (result)
@@ -371,7 +387,7 @@ app.MapPut("/update-user", [Authorize] async (User user) =>
     return Results.BadRequest("Update successful");
 }).WithTags("Users Endpoints");
 
-app.MapPost("/create-user", [Authorize] async (User user) =>
+app.MapPost("/create-user", [Authorize(Roles = "admin")] async (User user) =>
 {
     bool result = await UserRepository.CreateUserAsync(user);
     if (result)
@@ -381,7 +397,7 @@ app.MapPost("/create-user", [Authorize] async (User user) =>
     return Results.BadRequest();
 }).WithTags("Users Endpoints");
 
-app.MapDelete("/delete-user-by-id/{id}", [Authorize] async (string id) =>
+app.MapDelete("/delete-user-by-id/{id}", [Authorize(Roles = "admin")] async (string id) =>
 {
     bool result = await UserRepository.DaleteUserByIdAsync(id);
     if (result)
@@ -391,4 +407,19 @@ app.MapDelete("/delete-user-by-id/{id}", [Authorize] async (string id) =>
     return Results.BadRequest();
 }).WithTags("Users Endpoints");
 
+app.MapGet("/get-all-roles", /*[Authorize(Roles = "admin,moderator")]*/ async () =>
+{
+    using (var db = new AppDBContext())
+    {
+        return await db.Roles.ToListAsync();
+    }
+}).WithTags("Roles Endpoints");
+
+app.MapGet("/get-all-user-roles", [Authorize] async () =>
+{
+    using (var db = new AppDBContext())
+    {
+        return await db.UserRoles.ToListAsync();
+    }
+}).WithTags("Roles Endpoints");
 app.Run();

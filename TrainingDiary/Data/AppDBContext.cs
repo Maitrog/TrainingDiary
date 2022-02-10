@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace TrainingDiary.Data
@@ -23,6 +24,12 @@ namespace TrainingDiary.Data
             modelBuilder.Entity<User>().HasData(Array.Empty<User>());
             modelBuilder.Entity<ExerciseType>().HasData(Array.Empty<ExerciseType>());
             modelBuilder.Entity<MuscleGroup>().HasData(Array.Empty<MuscleGroup>());
+            modelBuilder.Entity<IdentityRole>().HasData(new List<IdentityRole> 
+            { 
+                new IdentityRole { Name = "user", NormalizedName="USER" }, 
+                new IdentityRole { Name = "admin", NormalizedName = "ADMIN" }, 
+                new IdentityRole { Name = "moderator", NormalizedName="MODERATOR" } 
+            });
         }
         //public AppDBContext(DbContextOptions<AppDBContext> options) : base(options)
         //{
