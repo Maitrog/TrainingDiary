@@ -31,10 +31,11 @@ namespace TrainingDiary.Data
                 new IdentityRole { Name = "moderator", NormalizedName="MODERATOR" } 
             });
         }
-        //public AppDBContext(DbContextOptions<AppDBContext> options) : base(options)
-        //{
-        //    Database.EnsureCreated();
-        //}
+
+        public AppDBContext() : base() { }
+        public AppDBContext(DbContextOptions<AppDBContext> options) : base(options)
+        {
+        }
 
     }
 }

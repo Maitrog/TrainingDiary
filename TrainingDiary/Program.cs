@@ -5,6 +5,8 @@ using TrainingDiary.Data;
 using Microsoft.AspNetCore.Mvc;
 using TrainingDiary.Data.Repositories;
 using Microsoft.AspNetCore.Authorization;
+using System.Collections.Generic;
+using System.Collections;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,7 +45,7 @@ builder.Services.Configure<IdentityOptions>(options =>
     // User settings.
     options.User.AllowedUserNameCharacters =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+!¹;%:?*()-=/#$^&[]{}\\|<>,:'\"";
-    options.User.RequireUniqueEmail = false;
+    options.User.RequireUniqueEmail = true;
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -81,14 +83,14 @@ app.MapPost("login", [ValidateAntiForgeryToken] async (LoginDto userDto) =>
     User? user;
     using (var db = new AppDBContext())
     {
-         user = await db.Users.FirstOrDefaultAsync(x => x.Email == userDto.Email);
+        user = await db.Users.FirstOrDefaultAsync(x => x.Email == userDto.Email);
     }
     if (user != null)
     {
         using (var scope = app.Services.CreateScope())
         {
 
-            var signInManager = (SignInManager<User>)scope.ServiceProvider.GetService(typeof(SignInManager<User>));
+            var signInManager = scope.ServiceProvider.GetService<SignInManager<User>>();
             var result = await signInManager.PasswordSignInAsync(user, userDto.Password, userDto.RememberMe, false);
             if (result.Succeeded)
             {
@@ -107,7 +109,7 @@ app.MapPost("logout", [ValidateAntiForgeryToken][Authorize] async () =>
 {
     using (var scope = app.Services.CreateScope())
     {
-        var signInManager = (SignInManager<User>)scope.ServiceProvider.GetService(typeof(SignInManager<User>));
+        var signInManager = scope.ServiceProvider.GetService<SignInManager<User>>();
         await signInManager.SignOutAsync();
         return Results.Ok("Successfully logout.");
     }
@@ -117,8 +119,8 @@ app.MapPost("register", async (RegisterDto registerDto) =>
 {
     using (var scope = app.Services.CreateScope())
     {
-        var userManager = (UserManager<User>)scope.ServiceProvider.GetService(typeof(UserManager<User>));
-        var signInManager = (SignInManager<User>)scope.ServiceProvider.GetService(typeof(SignInManager<User>));
+        var userManager = scope.ServiceProvider.GetService<UserManager<User>>();
+        var signInManager = scope.ServiceProvider.GetService<SignInManager<User>>();
 
         User user = new()
         {
@@ -142,7 +144,7 @@ app.MapPost("register", async (RegisterDto registerDto) =>
     }
 }).WithTags("Authorization Endpoints");
 
-app.MapGet("get-all-exercise-type", [Authorize(Roles = "admin,moderator")] async () => await ExerciseTypeRepository.GetExerciseTypeAsync()).WithTags("Exercise Types Endpoints");
+app.MapGet("get-all-exercise-type", [Authorize] async () => await ExerciseTypeRepository.GetExerciseTypeAsync()).WithTags("Exercise Types Endpoints");
 
 app.MapGet("/get-exercise-type-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
@@ -310,24 +312,25 @@ app.MapDelete("/delete-set-by-id/{id}", [Authorize(Roles = "admin,moderator")] a
     return Results.BadRequest();
 }).WithTags("Sets Endpoints");
 
-app.MapGet("/get-all-workout", [Authorize] async () => await WorkoutRepository.GetWorkoutAsync()).WithTags("Workouts Endpoints");
+app.MapGet("/get-all-workout", [Authorize(Roles = "admin,moderator")] async () => await WorkoutRepository.GetWorkoutAsync()).WithTags("Workouts Endpoints");
+
+app.MapGet("/get-workout-by-user-id/{userId}", [Authorize] async (string userId) =>
+{
+    User user = await GetCurrentUserAsync(app);
+    IList<string> roles = await GetCurrentUserRoles(app);
+
+    if (user.Id == userId || roles.Contains("ADMIN") || roles.Contains("MODERATOR"))
+    {
+        return Results.Ok(await WorkoutRepository.GetWorkoutByUserIdAsync(userId));
+    }
+    return Results.BadRequest();
+
+}).WithTags("Workouts Endpoints");
 
 app.MapGet("/get-workout-by-id/{id}", [Authorize(Roles = "admin,moderator")] async (int id) =>
 {
     Workout workout = await WorkoutRepository.GetWorkoutByIdAsync(id);
-    User? user;
-    using (var scope = app.Services.CreateScope())
-    {
-        var httpContextAccessor = (IHttpContextAccessor)scope.ServiceProvider.GetService(typeof(IHttpContextAccessor));
-        var userClaim = httpContextAccessor?.HttpContext?.User;
-        var userManager = (UserManager<User>)scope.ServiceProvider.GetService(typeof(UserManager<User>));
-        user = await userManager.GetUserAsync(userClaim);
-    }
-    //TODO: Add role check (ADMIN and MODERATOR)
-    if(user.Id != workout.UserId)
-    {
-        return Results.BadRequest();
-    }
+    User user = await GetCurrentUserAsync(app);
     if (workout != null)
     {
         return Results.Ok(workout);
@@ -387,16 +390,6 @@ app.MapPut("/update-user", [Authorize(Roles = "admin")] async (User user) =>
     return Results.BadRequest("Update successful");
 }).WithTags("Users Endpoints");
 
-app.MapPost("/create-user", [Authorize(Roles = "admin")] async (User user) =>
-{
-    bool result = await UserRepository.CreateUserAsync(user);
-    if (result)
-    {
-        return Results.Ok("Create successful");
-    }
-    return Results.BadRequest();
-}).WithTags("Users Endpoints");
-
 app.MapDelete("/delete-user-by-id/{id}", [Authorize(Roles = "admin")] async (string id) =>
 {
     bool result = await UserRepository.DaleteUserByIdAsync(id);
@@ -407,7 +400,27 @@ app.MapDelete("/delete-user-by-id/{id}", [Authorize(Roles = "admin")] async (str
     return Results.BadRequest();
 }).WithTags("Users Endpoints");
 
-app.MapGet("/get-all-roles", /*[Authorize(Roles = "admin,moderator")]*/ async () =>
+app.MapPut("/add-user-role/{userId}", [Authorize(Roles = "admin")] async (string userId, string roleName) =>
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var userManager = scope.ServiceProvider.GetService<UserManager<User>>();
+        User user = await userManager.FindByIdAsync(userId);
+        var roles = await userManager.GetRolesAsync(user);
+
+        await userManager.RemoveFromRolesAsync(user, roles);
+        roles.Add(roleName);
+        var result = await userManager.AddToRolesAsync(user, roles);
+        if (result.Succeeded)
+        {
+            return Results.Ok("Successfuly added role.");
+        }
+        return Results.BadRequest("Error. Check user data and role name.");
+    }
+
+}).WithTags("Users Endpoints");
+
+app.MapGet("/get-all-roles", [Authorize(Roles = "admin,moderator")] async () =>
 {
     using (var db = new AppDBContext())
     {
@@ -423,3 +436,24 @@ app.MapGet("/get-all-user-roles", [Authorize] async () =>
     }
 }).WithTags("Roles Endpoints");
 app.Run();
+
+async Task<User> GetCurrentUserAsync(WebApplication app)
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var httpContextAccessor = scope.ServiceProvider.GetService<IHttpContextAccessor>();
+        var userClaim = httpContextAccessor?.HttpContext?.User;
+        var userManager = scope.ServiceProvider.GetService<UserManager<User>>();
+        return await userManager.GetUserAsync(userClaim);
+    }
+}
+
+async Task<IList<string>> GetCurrentUserRoles(WebApplication app)
+{
+    User user = await GetCurrentUserAsync(app);
+    using (var scope = app.Services.CreateScope())
+    {
+        var userManager = scope.ServiceProvider.GetService<UserManager<User>>();
+        return await userManager.GetRolesAsync(user);
+    }
+}

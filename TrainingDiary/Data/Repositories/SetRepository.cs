@@ -20,6 +20,22 @@ namespace TrainingDiary.Data.Repositories
             }
         }
 
+        internal async static Task<List<Set>> GetSetByUserIdAsync(string userId)
+        {
+            using (var db = new AppDBContext())
+            {
+                return await db.Sets.Where(x => x.Workout.UserId == userId).ToListAsync();
+            }
+        }
+
+        internal async static Task<List<Set>> GetSetByWorkoutIdAsync(int workoutId)
+        {
+            using (var db = new AppDBContext())
+            {
+                return await db.Sets.Where(x => x.WorkoutId == workoutId).ToListAsync();
+            }
+        }
+
         internal async static Task<bool> CreateSetAsync(Set set)
         {
             using (var db = new AppDBContext())

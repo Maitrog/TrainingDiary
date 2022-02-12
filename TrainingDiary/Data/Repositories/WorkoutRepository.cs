@@ -19,6 +19,13 @@ namespace TrainingDiary.Data.Repositories
                 return await db.Workouts.FirstOrDefaultAsync(x => x.Id == id);
             }
         }
+        internal async static Task<List<Workout>> GetWorkoutByUserIdAsync(string userId)
+        {
+            using (var db = new AppDBContext())
+            {
+                return await db.Workouts.Where(x => x.UserId == userId).ToListAsync();
+            }
+        }
 
         internal async static Task<bool> CreateWorkoutAsync(Workout workout)
         {
